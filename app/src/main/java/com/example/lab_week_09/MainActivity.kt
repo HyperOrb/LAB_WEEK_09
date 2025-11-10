@@ -3,7 +3,6 @@ package com.example.lab_week_09
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -16,6 +15,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -24,78 +26,115 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.lab_week_09.ui.theme.LAB_WEEK_09Theme
 
-// Aktivitas sekarang mewarisi dari ComponentActivity [cite: 60]
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Kita menggunakan setContent, bukan setContentView [cite: 64]
         setContent {
             LAB_WEEK_09Theme {
                 Surface(
-                    modifier = Modifier.fillMaxSize(), // [cite: 70]
-                    color = MaterialTheme.colorScheme.background // [cite: 73]
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
                 ) {
-                    // Siapkan daftar statis untuk Bagian 1 [cite: 212]
-                    val list = listOf("Tanu", "Tina", "Tono")
-                    // Panggil Composable Home kita dengan daftar tersebut [cite: 213]
-                    Home(items = list)
+                    // Panggil Home tanpa parameter 
+                    Home()
                 }
             }
         }
     }
 }
 
-// Ini adalah "Composable" kita, setara dengan file layout [cite: 82, 87]
 @Composable
-fun Home(items: List<String>) { // [cite: 128, 130]
-    // LazyColumn lebih efisien untuk daftar, seperti RecyclerView [cite: 131, 133]
+fun Home() {
+    // Definisikan state untuk daftar 
+    val listData = remember {
+        listOf(
+            Student("Tanu"), 
+            Student("Tina"), 
+            Student("Tono")  
+        ).toMutableStateList() // Konversi ke daftar yang bisa diubah
+    }
+    
+    // Definisikan state untuk input field 
+    val inputField = remember { mutableStateOf(Student("")) }
+
+    // Panggil HomeContent dan teruskan state dan lambda
+    HomeContent(
+        listData = listData,
+        inputField = inputField.value,
+        onInputValueChange = { newName ->
+            // Perbarui state inputField saat pengguna mengetik 
+            // Ini adalah kode yang diperbaiki dari modul
+            inputField.value = inputField.value.copy(name = newName)
+        },
+        onButtonClick = {
+            // Tambahkan item baru ke daftar jika tidak kosong 
+            // Ini adalah kode yang diperbaiki, sesuai dengan perbaikan di Assignment
+            if (inputField.value.name.isNotBlank()) {
+                listData.add(inputField.value)
+                // Reset input field 
+                inputField.value = Student("")
+            }
+        }
+    )
+}
+
+@Composable
+fun HomeContent(
+    listData: List<Student>,  // Gunakan List agar lebih fleksibel
+    inputField: Student,
+    onInputValueChange: (String) -> Unit, 
+    onButtonClick: () -> Unit 
+) {
     LazyColumn {
-        // 'item' digunakan untuk satu item (header kita) [cite: 137]
         item {
             Column(
                 modifier = Modifier
-                    .padding(16.dp) // [cite: 146]
+                    .padding(16.dp)
                     .fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally // [cite: 155]
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(text = stringResource(id = R.string.enter_item)) // [cite: 156]
+                Text(text = stringResource(id = R.string.enter_item))
                 
-                // TextField adalah untuk input teks [cite: 159, 220]
                 TextField(
-                    value = "", // [cite: 160]
+                    value = inputField.name,  // Tampilkan state
                     keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Text // Modul mengatakan Number[cite: 163], tapi kita masukkan nama
+                        keyboardType = KeyboardType.Text 
                     ),
-                    onValueChange = { /* Biarkan kosong untuk saat ini */ } // [cite: 167]
+                    // Panggil lambda saat nilai berubah 
+                    onValueChange = onInputValueChange 
                 )
                 
-                // Button untuk aksi klik [cite: 170]
-                Button(onClick = { /* Biarkan kosong untuk saat ini */ }) { // [cite: 173]
-                    Text(text = stringResource(id = R.string.button_click)) // [cite: 175]
+                // Panggil lambda saat tombol diklik 
+                Button(onClick = onButtonClick) { 
+                    Text(text = stringResource(id = R.string.button_click))
                 }
             }
         }
         
-        // 'items' digunakan untuk me-render daftar [cite: 181, 184]
-        items(items) { item ->
+        // Render daftar dari state 
+        items(listData) { item ->
             Column(
                 modifier = Modifier
                     .padding(vertical = 4.dp)
                     .fillMaxSize(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(text = item) // [cite: 188]
+                Text(text = item.name) 
             }
         }
     }
 }
 
-// Fungsi @Preview ini untuk menampilkan pratinjau di Android Studio [cite: 195, 198]
+
 @Preview(showBackground = true)
 @Composable
 fun PreviewHome() {
     LAB_WEEK_09Theme {
-        // Kita meneruskan data palsu ke preview [cite: 202]
-        Home(items = listOf("Tanu", "Tina", "Tono"))
+        Home()
     }
 }
+
+// Data class kita 
+data class Student(
+    var name: String
+)
