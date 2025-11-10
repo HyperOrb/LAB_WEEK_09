@@ -1,6 +1,7 @@
 package com.example.lab_week_09
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
@@ -19,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
@@ -33,6 +35,9 @@ import com.example.lab_week_09.ui.theme.LAB_WEEK_09Theme
 import com.example.lab_week_09.ui.theme.OnBackgroundItemText
 import com.example.lab_week_09.ui.theme.OnBackgroundTitleText
 import com.example.lab_week_09.ui.theme.PrimaryTextButton
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,9 +48,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    // 1. Buat NavController 
                     val navController = rememberNavController()
-                    // 2. Panggil App Composable kita 
                     App(navController = navController)
                 }
             }
@@ -53,44 +56,34 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// Composable root baru kita 
 @Composable
 fun App(navController: NavHostController) {
-    // NavHost mengatur grafik navigasi 
     NavHost(
         navController = navController,
-        startDestination = "home" 
+        startDestination = "home"
     ) {
-        // Rute "home" 
         composable("home") {
-            // Berikan lambda navigasi ke Home 
             Home(
                 navigateFromHomeToResult = { listString ->
-                    // Navigasi ke rute result dengan membawa data 
                     navController.navigate("resultContent/?listData=$listString")
                 }
             )
         }
-        
-        // Rute "resultContent" dengan argumen 
         composable(
-            route = "resultContent/?listData={listData}", 
-            arguments = listOf(navArgument("listData") { 
-                type = NavType.StringType 
+            route = "resultContent/?listData={listData}",
+            arguments = listOf(navArgument("listData") {
+                type = NavType.StringType
             })
         ) { backStackEntry ->
-            // Ambil argumen dan teruskan ke ResultContent 
             ResultContent(
-                listData = backStackEntry.arguments?.getString("listData").orEmpty() 
+                listData = backStackEntry.arguments?.getString("listData").orEmpty()
             )
         }
     }
 }
 
-
 @Composable
 fun Home(
-    // Terima lambda navigasi 
     navigateFromHomeToResult: (String) -> Unit
 ) {
     val listData = remember {
@@ -100,27 +93,27 @@ fun Home(
             Student("Tono")
         ).toMutableStateList()
     }
-    
+
     var inputField = remember { mutableStateOf(Student("")) }
+    val context = LocalContext.current
 
     HomeContent(
         listData = listData,
         inputField = inputField.value,
         onInputValueChange = { newName ->
-            // Ini adalah kode yang diperbaiki dari modul 
             inputField.value = inputField.value.copy(name = newName)
         },
         onButtonClick = {
             if (inputField.value.name.isNotBlank()) {
                 listData.add(inputField.value)
-                // Ini adalah kode yang diperbaiki dari modul 
                 inputField.value = Student("")
+            } else {
+                Toast.makeText(context, "Input cannot be blank", Toast.LENGTH_SHORT).show()
             }
         },
-        // Teruskan panggilan navigasi 
         navigateFromHomeToResult = {
-            // Ubah daftar menjadi string sebelum navigasi 
-            navigateFromHomeToResult(listData.toList().toString())
+            val jsonString = Json.encodeToString(listData.toList())
+            navigateFromHomeToResult(jsonString)
         }
     )
 }
@@ -131,7 +124,6 @@ fun HomeContent(
     inputField: Student,
     onInputValueChange: (String) -> Unit,
     onButtonClick: () -> Unit,
-    // Terima lambda navigasi baru 
     navigateFromHomeToResult: () -> Unit
 ) {
     LazyColumn {
@@ -143,7 +135,7 @@ fun HomeContent(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 OnBackgroundTitleText(text = stringResource(id = R.string.enter_item))
-                
+
                 TextField(
                     value = inputField.name,
                     keyboardOptions = KeyboardOptions(
@@ -151,23 +143,21 @@ fun HomeContent(
                     ),
                     onValueChange = onInputValueChange
                 )
-                
-                // Bungkus tombol dalam Row 
+
                 Row {
                     PrimaryTextButton(
                         text = stringResource(id = R.string.button_click),
                         onClick = onButtonClick
                     )
-                    
-                    // Tombol Finish baru 
+
                     PrimaryTextButton(
                         text = stringResource(id = R.string.button_navigate),
-                        onClick = navigateFromHomeToResult 
+                        onClick = navigateFromHomeToResult
                     )
                 }
             }
         }
-        
+
         items(listData) { item ->
             Column(
                 modifier = Modifier
@@ -181,30 +171,40 @@ fun HomeContent(
     }
 }
 
-// Composable baru untuk layar hasil 
 @Composable
-fun ResultContent(listData: String) { 
-    Column(
-        modifier = Modifier
-            .padding(vertical = 4.dp)
-            .fillMaxSize(),
+fun ResultContent(listData: String) {
+    val studentList: List<Student> = try {
+        Json.decodeFromString(listData)
+    } catch (e: Exception) {
+        emptyList()
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Tampilkan string yang dikirim 
-        OnBackgroundItemText(text = listData)
+        items(studentList) { student ->
+            Column(
+                modifier = Modifier
+                    .padding(vertical = 4.dp)
+                    .fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                OnBackgroundItemText(text = student.name)
+            }
+        }
     }
 }
-
 
 @Preview(showBackground = true)
 @Composable
 fun PreviewHome() {
     LAB_WEEK_09Theme {
-        // Preview tidak bisa menangani navigasi, jadi kita pratinjau Home saja
-        Home(navigateFromHomeToResult = {}) // [cite: 718]
+        Home(navigateFromHomeToResult = {})
     }
 }
 
+@Serializable
 data class Student(
-    var name: String
+    val name: String
 )
